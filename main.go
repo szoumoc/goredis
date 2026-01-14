@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 )
@@ -10,13 +11,13 @@ const DefaultServeraddr = ":8080"
 type Config struct {
 	Host             string
 	ListenServeraddr string
-	addPeerCh        chan *Peer
 }
 
 type Server struct {
 	Config
-	peers map[Peer]bool
-	ln    net.Listener
+	peers     map[Peer]bool
+	ln        net.Listener
+	addPeerCh chan *Peer
 }
 
 func NewServer(cfg Config) *Server {
@@ -35,7 +36,21 @@ func (s *Server) Start() error {
 		return err
 	}
 	s.ln = ln
+
+	go s.loop()
+
 	return s.acceptLoop()
+}
+
+func (s *Server) loop() error {
+	for {
+		select {
+		case peer := <-s.addPeerCh:
+			s.peers[*peer] = true
+		default:
+			fmt.Println("foo")
+		}
+	}
 }
 
 func (s *Server) acceptLoop() error {
@@ -51,9 +66,12 @@ func (s *Server) acceptLoop() error {
 }
 
 func (s *Server) handleConnection(conn net.Conn) error {
-
+	peer := NewPeer(conn)
+	s.addPeerCh <- peer
+	go peer.readLoop()
 }
 
 func main() {
 	// This is a placeholder for the main function.
+
 }
